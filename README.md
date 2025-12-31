@@ -1,6 +1,8 @@
 # TypechoLoginData
 
 TypechoLoginData是一个为Typecho 1.2.1+和PHP8设计的登录记录插件，用于记录和统计用户的登录情况。
+博客地址：https://www.tianlingzi.top/archives/237/
+开源地址：https://github.com/tianlingzi/TypechoLoginData
 
 ## 功能特点
 
