@@ -110,7 +110,9 @@ $methodStats = array_map(function($count, $method) {
 }, $methodStats, array_keys($methodStats));
 
 // 分页设置
-$pageSize = 20;
+$pageSizes = array(20, 50, 100, 200);
+$defaultPageSize = 20;
+$pageSize = isset($_GET['pageSize']) && in_array(intval($_GET['pageSize']), $pageSizes) ? intval($_GET['pageSize']) : $defaultPageSize;
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $pageSize;
 
@@ -196,12 +198,16 @@ $options = Typecho_Widget::widget('Widget_Options');
                     </div>
                 </div>
                 
-                <!-- 时间筛选导航 -->
+                <!-- 时间筛选导航 - 可折叠 -->
                 <div class="typecho-option">
-                    <div class="typecho-option-header">
+                    <div class="typecho-option-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; padding: 0.5rem 0;">
                         <h4><?php _e('时间筛选'); ?></h4>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span id="filter-toggle-text" style="font-weight: 600; color: var(--primary-color); font-size: 0.9rem;"><?php _e('展开'); ?></span>
+                            <span id="filter-toggle" style="font-size: 1.4rem; color: var(--primary-color); transition: transform 0.3s ease; transform: rotate(-90deg); background: var(--primary-light); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">▼</span>
+                        </div>
                     </div>
-                    <div class="typecho-option-content">
+                    <div id="filter-content" class="typecho-option-content" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease; opacity: 0;">
                         <div class="archives-nav">
                             <div style="margin-bottom: 1rem;">
                                 <a href="<?php echo $options->adminUrl('extending.php?panel=TypechoLoginData/panel.php'); ?>" <?php if (empty($ymd) && empty($year) && empty($_GET['start_date']) && empty($_GET['end_date'])) echo 'class="current"'; ?>><?php _e('全部记录'); ?></a>
@@ -239,6 +245,49 @@ $options = Typecho_Widget::widget('Widget_Options');
                                 document.getElementById('end_date').value = '';
                                 window.location.href = '<?php echo $options->adminUrl('extending.php?panel=TypechoLoginData/panel.php'); ?>';
                             }
+                            
+                            // 折叠/展开功能
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const toggle = document.getElementById('filter-toggle');
+                                const toggleText = document.getElementById('filter-toggle-text');
+                                const content = document.getElementById('filter-content');
+                                
+                                // 检查本地存储中的折叠状态
+                                const isCollapsed = localStorage.getItem('filterCollapsed') === 'true';
+                                
+                                // 初始化状态
+                                if (isCollapsed) {
+                                    content.style.maxHeight = '0';
+                                    content.style.opacity = '0';
+                                    toggle.style.transform = 'rotate(-90deg)';
+                                    toggleText.textContent = '<?php _e('展开'); ?>';
+                                } else {
+                                    content.style.maxHeight = '500px';
+                                    content.style.opacity = '1';
+                                    toggle.style.transform = 'rotate(0deg)';
+                                    toggleText.textContent = '<?php _e('折叠'); ?>';
+                                }
+                                
+                                toggle.addEventListener('click', function() {
+                                    const isCollapsed = content.style.maxHeight === '0px' || content.style.maxHeight === '';
+                                    
+                                    if (isCollapsed) {
+                                        // 展开
+                                        content.style.maxHeight = '500px';
+                                        content.style.opacity = '1';
+                                        toggle.style.transform = 'rotate(0deg)';
+                                        toggleText.textContent = '<?php _e('折叠'); ?>';
+                                        localStorage.setItem('filterCollapsed', 'false');
+                                    } else {
+                                        // 折叠
+                                        content.style.maxHeight = '0';
+                                        content.style.opacity = '0';
+                                        toggle.style.transform = 'rotate(-90deg)';
+                                        toggleText.textContent = '<?php _e('展开'); ?>';
+                                        localStorage.setItem('filterCollapsed', 'true');
+                                    }
+                                });
+                            });
                             </script>
                             
                             <?php if (count($allRecords) > 0): ?>
@@ -327,32 +376,136 @@ $options = Typecho_Widget::widget('Widget_Options');
                     </table>
                 </div>
                 
-                <!-- 分页 -->
-                <?php if ($total > $pageSize): ?>
-                    <div class="typecho-pager">
-                        <?php 
-                        // 构建分页URL
-                        $paginationUrl = $options->adminUrl('extending.php?panel=TypechoLoginData/panel.php');
-                        if (!empty($ymd)) {
-                            $paginationUrl .= '&ymd=' . $ymd;
-                        } elseif (!empty($year)) {
-                            $paginationUrl .= '&year=' . $year;
-                            if (!empty($month)) {
-                                $paginationUrl .= '&month=' . $month;
-                            }
-                        }
-                        $paginationUrl .= '&page={page}';
+                <!-- 分页和每页显示数量 -->
+                <div style="margin-top: 2rem; padding: 1.5rem; background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)); border: 1px solid var(--border-color); border-radius: var(--border-radius); box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 2rem; flex-wrap: wrap;">
+                        <!-- 每页显示数量选择 -->
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <form method="get" action="extending.php" style="display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                                <?php 
+                                // 保留当前所有筛选参数
+                                foreach ($_GET as $key => $value) {
+                                    if ($key != 'page' && $key != 'pageSize') {
+                                        echo '<input type="hidden" name="' . htmlspecialchars($key) . '" value="' . htmlspecialchars($value) . '">';
+                                    }
+                                }
+                                ?>
+                                <input type="hidden" name="panel" value="TypechoLoginData/panel.php">
+                                <input type="hidden" name="page" value="1">
+                                
+                                <span style="font-weight: 600; color: var(--text-secondary); font-size: 0.95rem;"><?php _e('每页显示'); ?></span>
+                                <select id="pageSize" name="pageSize" onchange="this.form.submit()" style="
+                                    padding: 0.6rem 1.2rem;
+                                    border: 2px solid var(--border-color);
+                                    border-radius: var(--border-radius-sm);
+                                    font-size: 0.95rem;
+                                    background: var(--bg-primary);
+                                    color: var(--text-primary);
+                                    min-width: 80px;
+                                    transition: all 0.3s ease;
+                                    cursor: pointer;
+                                    appearance: none;
+                                    background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 512"><path fill="%23475569" d="M118.6 32.5c-3.7-8.5-15-8.5-18.6 0L3.8 241.9c-3.7 8.5 1.4 18.1 10.1 18.1h228.2c8.6 0 13.7-9.6 10.1-18.1L138.6 32.5z"/></svg>');
+                                    background-repeat: no-repeat;
+                                    background-position: right 0.75rem center;
+                                    background-size: 16px;
+                                ">
+                                    <?php foreach ($pageSizes as $size): ?>
+                                        <option value="<?php echo $size; ?>" <?php if ($pageSize == $size) echo 'selected'; ?>>
+                                            <?php echo $size; ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </form>
+                        </div>
                         
-                        Typecho_Widget::widget('Widget_PageNavigator_Contents')
-                            ->render(array(
-                                'total' => $total,
-                                'pageSize' => $pageSize,
-                                'page' => $page,
-                                'url' => $paginationUrl
-                            )); 
-                        ?>
+                        <!-- 分页 -->
+                        <?php if ($total > $pageSize): ?>
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <?php 
+                                // 构建当前URL的查询字符串，不包含page参数
+                                $currentQuery = $_GET;
+                                unset($currentQuery['page']);
+                                // 确保包含当前的pageSize参数
+                                $currentQuery['pageSize'] = $pageSize;
+                                $queryString = http_build_query($currentQuery);
+                                $baseUrl = 'extending.php?panel=TypechoLoginData/panel.php';
+                                $baseUrl .= $queryString ? '&' . $queryString : '';
+                                
+                                $pages = ceil($total / $pageSize);
+                                if ($pages > 1) {
+                                    // 上一页
+                                    if ($page > 1) {
+                                        $prevUrl = $baseUrl . '&page=' . ($page - 1);
+                                        echo '<a href="' . htmlspecialchars($prevUrl) . '" style="
+                                            padding: 0.6rem 1.2rem;
+                                            background: var(--bg-primary);
+                                            border: 2px solid var(--border-color);
+                                            border-radius: var(--border-radius-sm);
+                                            color: var(--text-primary);
+                                            text-decoration: none;
+                                            font-weight: 600;
+                                            font-size: 0.95rem;
+                                            transition: all 0.3s ease;
+                                            cursor: pointer;
+                                        ">' . _t('上一页') . '</a>';
+                                    }
+                                    
+                                    // 页码
+                                    for ($i = 1; $i <= $pages; $i++) {
+                                        $pageUrl = $baseUrl . '&page=' . $i;
+                                        if ($i == $page) {
+                                            echo '<a href="' . htmlspecialchars($pageUrl) . '" style="
+                                                padding: 0.6rem 1.2rem;
+                                                background: var(--primary-color);
+                                                border: 2px solid var(--primary-color);
+                                                border-radius: var(--border-radius-sm);
+                                                color: white;
+                                                text-decoration: none;
+                                                font-weight: 700;
+                                                font-size: 0.95rem;
+                                                transition: all 0.3s ease;
+                                                cursor: pointer;
+                                                box-shadow: var(--shadow-md);
+                                            ">' . $i . '</a>';
+                                        } else {
+                                            echo '<a href="' . htmlspecialchars($pageUrl) . '" style="
+                                                padding: 0.6rem 1.2rem;
+                                                background: var(--bg-primary);
+                                                border: 2px solid var(--border-color);
+                                                border-radius: var(--border-radius-sm);
+                                                color: var(--text-primary);
+                                                text-decoration: none;
+                                                font-weight: 600;
+                                                font-size: 0.95rem;
+                                                transition: all 0.3s ease;
+                                                cursor: pointer;
+                                            ">' . $i . '</a>';
+                                        }
+                                    }
+                                    
+                                    // 下一页
+                                    if ($page < $pages) {
+                                        $nextUrl = $baseUrl . '&page=' . ($page + 1);
+                                        echo '<a href="' . htmlspecialchars($nextUrl) . '" style="
+                                            padding: 0.6rem 1.2rem;
+                                            background: var(--bg-primary);
+                                            border: 2px solid var(--border-color);
+                                            border-radius: var(--border-radius-sm);
+                                            color: var(--text-primary);
+                                            text-decoration: none;
+                                            font-weight: 600;
+                                            font-size: 0.95rem;
+                                            transition: all 0.3s ease;
+                                            cursor: pointer;
+                                        ">' . _t('下一页') . '</a>';
+                                    }
+                                }
+                                ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
-                <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>

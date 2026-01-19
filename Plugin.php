@@ -11,7 +11,7 @@ if (date_default_timezone_get() !== 'Asia/Shanghai') {
  * 
  * @package TypechoLoginData
  * @author tianlingzi
- * @version 1.0
+ * @version 2.0
  * @link https://www.tianlingzi.top/archives/237/
  */
 class TypechoLoginData_Plugin implements Typecho_Plugin_Interface
