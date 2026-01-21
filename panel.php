@@ -176,9 +176,27 @@ $options = Typecho_Widget::widget('Widget_Options');
     <div class="body container">
         <div class="col-group typecho-page-main" role="main">
             <div class="typecho-list">
-                <div class="typecho-page-header">
-                    <h2><?php _e('登录记录'); ?></h2>
-                    <p><?php _e('共 %d 条记录，涉及 %d 位用户，平均每人登录 %.2f 次', $total, $uniqueUsers, $avgLogins); ?></p>
+                <div class="typecho-page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h2><?php _e('登录记录'); ?></h2>
+                        <p><?php _e('共 %d 条记录，涉及 %d 位用户，平均每人登录 %.2f 次', $total, $uniqueUsers, $avgLogins); ?></p>
+                    </div>
+                    <a href="<?php echo $options->adminUrl(); ?>" style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        padding: 0.75rem 1.5rem;
+                        background: var(--primary-color);
+                        color: white;
+                        text-decoration: none;
+                        border-radius: var(--border-radius-sm);
+                        font-weight: 600;
+                        transition: var(--transition);
+                        font-size: 0.95rem;
+                    ">
+                        <span style="font-size: 1.2rem;">←</span>
+                        <?php _e('返回后台'); ?>
+                    </a>
                 </div>
                 
                 <!-- 统计信息 -->
